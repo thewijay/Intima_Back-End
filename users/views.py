@@ -37,7 +37,7 @@ class LoginView(APIView):
                 "refresh": str(refresh),
                 "access": str(refresh.access_token)
             })
-        return Response({"error": "Invalid credentials"}, status=401)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]  # This ensures only authenticated users can access
