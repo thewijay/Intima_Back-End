@@ -3,6 +3,11 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
+# Base directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env
+load_dotenv(BASE_DIR / ".env")
 
 
 INSTALLED_APPS = [
@@ -29,7 +34,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'Intima_BackEnd.urls'
@@ -56,11 +60,11 @@ WSGI_APPLICATION = 'Intima_BackEnd.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'intimapsql_db',
-        'USER': 'postgres',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv("DATABASE_NAME"),
+        'USER': os.getenv("DATABASE_USER"),
+        'PASSWORD': os.getenv("DATABASE_PASSWORD"),
+        'HOST': os.getenv("DATABASE_HOST", "localhost"),
+        'PORT': os.getenv("DATABASE_PORT", "5432"),
     }
 }
 
@@ -75,9 +79,13 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 APPEND_SLASH = False
 
+# Load secret key from environment variable
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("No SECRET_KEY set. Please set it in your .env file.")
 
 
 STATIC_URL = 'static/'
@@ -91,10 +99,6 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
-
-SECRET_KEY = 'cxh)7nus4!0o12-&p-hypf8!!56-@!oxdfe2(tvrd9$sy5h)z!'
-# SECURITY WARNING: keep the secret key used in production secret!
-
 
 # JWT Settings
 SIMPLE_JWT = {
@@ -113,6 +117,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.8.165:8081",  # if accessing from mobile Expo dev
 ]
 
-ALLOWED_HOSTS = ['192.168.8.165', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
 
 

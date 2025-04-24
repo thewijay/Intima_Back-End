@@ -1,4 +1,4 @@
-#!/media/Local_Disk_D/CIS/Projects/Capstone/Repo/Intima_Back-End/myenv/bin/python3
+#!/mnt/Local_Disk_D/CIS/Projects/Capstone/Repo/Intima_Back-End/myenv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
