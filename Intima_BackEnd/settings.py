@@ -3,16 +3,7 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-default-secret-key')
-
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -21,10 +12,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
 
     'rest_framework',  # Django REST Framework
     'rest_framework.authtoken',
-    'authentication',
     'rest_framework_simplejwt',
     'users',
 ]
@@ -37,6 +28,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'Intima_BackEnd.urls'
@@ -63,11 +56,11 @@ WSGI_APPLICATION = 'Intima_BackEnd.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'intimapsql_db'),
-        'USER': os.getenv('DB_USER', 'myuser'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'mypassword'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': 'intimapsql_db',
+        'USER': 'postgres',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -82,6 +75,10 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+DEBUG = True
+APPEND_SLASH = False
+
+
 
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -95,6 +92,10 @@ REST_FRAMEWORK = {
     ),
 }
 
+SECRET_KEY = 'cxh)7nus4!0o12-&p-hypf8!!56-@!oxdfe2(tvrd9$sy5h)z!'
+# SECURITY WARNING: keep the secret key used in production secret!
+
+
 # JWT Settings
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
@@ -104,3 +105,14 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,  # Use Django's SECRET_KEY for security
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+CORS_ALLOW_ALL_ORIGINS = True  # Or restrict to specific domains in production
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8081",
+    "http://192.168.8.165:8081",  # if accessing from mobile Expo dev
+]
+
+ALLOWED_HOSTS = ['192.168.8.165', 'localhost', '127.0.0.1']
+
+
