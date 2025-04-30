@@ -12,7 +12,7 @@ class AIDocument(models.Model):
         limit_choices_to={'is_superuser': True},
         related_name='uploaded_ai_documents'
     )
-    document = models.FileField(upload_to='ai_documents/')
+    document = models.FileField(upload_to='documents/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
