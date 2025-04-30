@@ -27,6 +27,37 @@ class User(AbstractUser):
     password = models.CharField(max_length=255)
     username = None  # Disable username field
 
+    # Additional fields collected after login
+    first_name = models.CharField(max_length=30, blank=True, verbose_name="First Name")
+    last_name = models.CharField(max_length=30, blank=True, verbose_name="Last Name")
+    date_of_birth = models.DateField(null=True, blank=True, verbose_name="Date of Birth")
+
+    gender = models.CharField(
+        max_length=30,
+        choices=[
+            ('male', 'Male'),
+            ('female', 'Female'),
+            ('trans_male', 'Transgender Male'),
+            ('trans_female', 'Transgender Female'),
+            ('non_binary', 'Non-Binary / Non-Conforming'),
+            ('other', 'Other'),
+        ],
+        blank=True,
+        verbose_name="Gender Identity"
+    )
+    gender_other = models.CharField(max_length=50, blank=True, null=True)
+
+    height_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    marital_status = models.CharField(max_length=20, choices=[('single', 'Single'), ('married', 'Married'), ('divorced', 'Divorced')], blank=True, verbose_name="Marital Status")
+    sexually_active = models.BooleanField(null=True, blank=True, verbose_name="Are you sexually active?")
+    menstrual_cycle = models.TextField(null=True, blank=True, verbose_name="Menstrual Cycle Details")
+    medical_conditions = models.TextField(null=True, blank=True, verbose_name="Medical Conditions")
+
+    profile_completed = models.BooleanField(default=False)
+
+
     groups = models.ManyToManyField(
         Group,
         related_name="custom_user_set",

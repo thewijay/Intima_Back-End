@@ -22,7 +22,10 @@ INSTALLED_APPS = [
     'rest_framework',  # Django REST Framework
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
+
+    #local apps
     'users',
+    'knowledgebase',
 ]
 
 MIDDLEWARE = [
