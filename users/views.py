@@ -40,8 +40,37 @@ class LoginView(APIView):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 class ProfileView(APIView):
-    permission_classes = [IsAuthenticated]  # This ensures only authenticated users can access
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        return Response({'email': user.email})
+        return Response({
+            'email': user.email,
+            'profile_completed': user.profile_completed,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            # add other fields if needed
+        })
+
+class CompleteProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user.profile_completed = True
+        user.save()
+        return Response({"message": "Profile marked as completed"}, status=200)
+
+from .serializers import UserProfileSerializer
+
+class UpdateProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        serializer = UserProfileSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save(profile_completed=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
