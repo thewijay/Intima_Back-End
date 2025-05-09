@@ -51,7 +51,21 @@ class User(AbstractUser):
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     marital_status = models.CharField(max_length=20, choices=[('single', 'Single'), ('married', 'Married'), ('divorced', 'Divorced')], blank=True, verbose_name="Marital Status")
-    sexually_active = models.BooleanField(null=True, blank=True, verbose_name="Are you sexually active?")
+    SEXUAL_ACTIVITY_CHOICES = [
+    ('Low', 'Low'),
+    ('Moderate', 'Moderate'),
+    ('High', 'High'),
+    ('Prefer not to say', 'Prefer not to say'),
+    ]
+
+    sexually_active = models.CharField(
+        max_length=20,
+        choices=SEXUAL_ACTIVITY_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Sexual Activity Level"
+    )
+
     menstrual_cycle = models.TextField(null=True, blank=True, verbose_name="Menstrual Cycle Details")
     medical_conditions = models.TextField(null=True, blank=True, verbose_name="Medical Conditions")
 
