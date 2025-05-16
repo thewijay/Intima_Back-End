@@ -1,0 +1,56 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+venv/
+env/
+myenv/
+
+# Environment files
+.env
+.env.*
+!.env.dev  # Include .env.dev if you copy it in Docker
+
+# Django database
+*.sqlite3
+
+# IDE and editor config
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled files
+*.so
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+
+# Logs
+*.log
+
+# Node and frontend related (if any)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Git
+.git/
+.gitignore
