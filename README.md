@@ -34,6 +34,7 @@ Intima_Back-End/
 ```bash
 git clone https://github.com/thewijay/Intima_Back-End.git
 cd Intima_Back-End
+git checkout Dev
 ```
 
 ---
