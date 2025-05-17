@@ -5,6 +5,8 @@ from rest_framework import status
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
 
 # Create your views here.
 
@@ -24,6 +26,11 @@ class RegisterView(APIView):
 
         user = User.objects.create_user(email=email, password=password)
         return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 class LoginView(APIView):
     def post(self, request):

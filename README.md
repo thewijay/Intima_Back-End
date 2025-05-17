@@ -43,9 +43,16 @@ git checkout Dev
 
 ---
 
+### 3. Add your local ip address to these files
+
+- .env.dev -> DJANGO_ALLOWED_HOSTS -> add yourip after a comma
+- settings.py -> CORS_ALLOWED_ORIGINS -> "yourip:8081,"
+- In frontend -> hooks/api/auth.ts -> onst API_BASE_URL = 'http://yourip:8000/api';
+
 ### 3. Start the Containers
 
 This command will build the images and start the containers:
+
 ```bash
 docker compose up -d
 ```
@@ -55,29 +62,45 @@ docker compose up -d
 ### 4. Login to the main container's bash
 
 ```bash
-docker exec -it intima_back-end-web-1 bash 
+docker exec -it django_app bash
 ```
 
 ---
 
-### 5. Run migrations
-```bash
-python manage.py migrate
-```
-
----
-
-### 6. Create a Superuser
+### 5. Create a Superuser
 
 ```bash
 python manage.py createsuperuser
 ```
-give your creditials and create a super user.
+
+## give your creditials and create a super user.
+
 ---
 
-### 7. Access the App
+### 6. Access the App
 
 Admin Panel: http://localhost:8000/admin/
 
+## You can exit from the main container using this:
 
+```
+exit
+```
 
+---
+
+### Useful commands:
+
+```
+# start your apps
+docker compose up -d
+
+# Restart your apps to apply changes
+docker compose restart
+
+# Rebuild everything, then start your apps
+docker compose up -d --build
+
+# To delete all image cache
+docker builder prune
+```

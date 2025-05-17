@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: django_app
     command: >
       bash -c "
         python manage.py migrate &&
@@ -23,6 +24,7 @@ services:
 
   db:
     image: postgres:15
+    container_name: postgres_db
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
@@ -41,6 +43,7 @@ services:
 
   weaviate:
     image: cr.weaviate.io/semitechnologies/weaviate:1.30.3
+    container_name: weaviate_db
     ports:
       - '8080:8080'
       - '50051:50051'
