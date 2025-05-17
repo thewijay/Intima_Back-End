@@ -95,10 +95,10 @@ exit
 # start your apps
 docker compose up -d
 
-# Restart your apps to apply changes
+# Restart your apps
 docker compose restart
 
-# Rebuild everything, then start your apps
+# Rebuild to apply changes
 docker compose up -d --build
 
 # To delete all image cache
