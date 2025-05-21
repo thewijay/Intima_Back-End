@@ -6,8 +6,12 @@ from dotenv import load_dotenv
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env
-load_dotenv(BASE_DIR / ".env")
+# Static files configuration
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Load .env.dev
+load_dotenv(dotenv_path=Path(".env.dev"))
 
 
 INSTALLED_APPS = [
@@ -63,11 +67,11 @@ WSGI_APPLICATION = 'Intima_BackEnd.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("DATABASE_NAME"),
-        'USER': os.getenv("DATABASE_USER"),
-        'PASSWORD': os.getenv("DATABASE_PASSWORD"),
-        'HOST': os.getenv("DATABASE_HOST", "localhost"),
-        'PORT': os.getenv("DATABASE_PORT", "5432"),
+        'NAME': os.getenv("DB_NAME", "intima"),
+        'USER': os.getenv("DB_USER", "postgres"),
+        'PASSWORD': os.getenv("DB_PASSWORD", "postgres"),
+        'HOST': os.getenv("DB_HOST", "localhost"),
+        'PORT': os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -88,7 +92,7 @@ APPEND_SLASH = False
 # Load secret key from environment variable
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise ValueError("No SECRET_KEY set. Please set it in your .env file.")
+    raise ValueError("No SECRET_KEY set. Please set it in your .env.dev file.")
 
 
 STATIC_URL = 'static/'
@@ -113,13 +117,12 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = True  # Or restrict to specific domains in production
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Or restrict to specific domains in production
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "http://192.168.8.165:8081",  # if accessing from mobile Expo dev
+    "http://192.168.8.100:8081",
 ]
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
-
-
+ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
