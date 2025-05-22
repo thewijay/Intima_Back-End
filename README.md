@@ -59,7 +59,7 @@ docker compose up -d
 
 ---
 
-### 4. Login to the main container's bash
+### 4. Login to the django_app container's bash
 
 ```bash
 docker exec -it django_app bash
@@ -89,18 +89,37 @@ exit
 
 ---
 
-### Useful commands:
+## Useful commands:
 
+### In Backend Terminal
 ```
 # start your apps
-docker compose up -d
+docker compose --env-file .env.dev up -d
 
 # Restart your apps
 docker compose restart
 
 # Rebuild to apply changes
-docker compose up -d --build
+docker compose --env-file .env.dev up -d --build
 
 # To delete all image cache
 docker builder prune
+```
+
+### In django_app container
+```
+# Process newly added documents
+python manage.py process_documents
+
+# List all processed documents
+python manage.py list_documents
+
+# Delete all documents
+python manage.py delete_all_documents --confirm
+
+# Delete a single document with UUID
+python manage.py delete_document <uuid>
+
+# Delete multiple documents with UUID
+python manage.py delete_document <uuid> <uuid>
 ```

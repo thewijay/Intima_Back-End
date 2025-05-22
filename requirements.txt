@@ -45,3 +45,6 @@ idna==3.7
 
 # Dependency Management (Optional but useful)
 pip-tools==7.4.1
+
+
+openai
