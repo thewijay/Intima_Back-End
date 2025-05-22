@@ -59,7 +59,7 @@ docker compose up -d
 
 ---
 
-### 4. Login to the djago_app container's bash
+### 4. Login to the django_app container's bash
 
 ```bash
 docker exec -it django_app bash
