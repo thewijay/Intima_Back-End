@@ -6,12 +6,21 @@ from dotenv import load_dotenv
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DOCUMENTS_DIR = os.path.join(BASE_DIR, 'documents')
+
 # Static files configuration
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Load .env.dev
 load_dotenv(dotenv_path=Path(".env.dev"))
+
+
+# Weaviate settings
+WEAVIATE_URL = os.environ.get('WEAVIATE_URL', 'http://localhost:8080')
+
+# OpenAI settings
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
 
 INSTALLED_APPS = [
@@ -30,6 +39,7 @@ INSTALLED_APPS = [
     #local apps
     'users',
     'knowledgebase',
+    'ai_assistant',
 ]
 
 MIDDLEWARE = [
@@ -70,8 +80,8 @@ DATABASES = {
         'NAME': os.getenv("DB_NAME", "intima"),
         'USER': os.getenv("DB_USER", "postgres"),
         'PASSWORD': os.getenv("DB_PASSWORD", "postgres"),
-        'HOST': os.getenv("DB_HOST", "localhost"),
-        'PORT': os.getenv("DB_PORT", "5432"),
+        'HOST': "db",
+        'PORT': "5432",
     }
 }
 

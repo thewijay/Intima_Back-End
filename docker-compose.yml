@@ -52,9 +52,25 @@ services:
     restart: on-failure
     environment:
       QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       CLUSTER_HOSTNAME: 'node1'
+      ENABLE_API_BASED_MODULES: 'true'
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'false'
+      AUTHENTICATION_APIKEY_ENABLED: 'true'
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: '${WEAVIATE_ADMIN_KEY},${WEAVIATE_USER_KEY}'
+      AUTHENTICATION_APIKEY_USERS: 'admin,user'
+      AUTHORIZATION_ENABLE_RBAC: 'true'
+      AUTHORIZATION_RBAC_ROOT_USERS: 'admin'
+      AUTHORIZATION_ADMINLIST_READONLY_USERS: 'user'
+    env_file:
+      - .env.dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
 
 volumes:
   postgres_data:
