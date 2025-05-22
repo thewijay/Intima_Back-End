@@ -122,62 +122,6 @@ class WeaviateManager:
         try:
             # Ensure connection is active
             self.ensure_connected()
-            
-            # Normalize the file path to ensure consistency
-            normalized_path = os.path.normpath(file_path)
-            
-            # Generate a deterministic UUID based on the file path
-            # This ensures the same file always gets the same UUID
-            deterministic_uuid = str(uuid5(NAMESPACE_URL, normalized_path))
-            
-            # Check if document with this UUID already exists
-            documents = self.collections.get("Document")
-            exists = False
-            
-            try:
-                # Try to fetch the object with this UUID
-                existing = documents.data.get_by_id(deterministic_uuid)
-                exists = True
-                print(f"Document {title} already exists with UUID: {deterministic_uuid}")
-            except Exception as e:
-                # Object doesn't exist, we'll create it
-                print(f"Document {title} doesn't exist yet: {e}")
-                exists = False
-            
-            # If document already exists, return its UUID without re-inserting
-            if exists:
-                print(f"Skipping duplicate document: {title}")
-                return deterministic_uuid
-                
-            # Generate embedding
-            embedding = generate_embedding(content)
-            print(f"Generated embedding with {len(embedding)} dimensions")
-            
-            # Insert the document with its vector and deterministic UUID
-            result = documents.data.insert(
-                properties={
-                    "title": title,
-                    "content": content,
-                    "file_path": normalized_path  # Store normalized path
-                },
-                vector=embedding,
-                uuid=deterministic_uuid  # Use our deterministic UUID
-            )
-            
-            print(f"Document {title} stored with UUID: {deterministic_uuid}")
-            return deterministic_uuid
-            
-        except Exception as e:
-            print(f"Error storing document: {e}")
-            raise
-    
-    def store_document(self, title, content, file_path):
-        """Store a document with its embedding in Weaviate"""
-        from knowledgebase.vectorization import generate_embedding
-        
-        try:
-            # Ensure connection is active
-            self.ensure_connected()
                 
             # Normalize the file path to ensure consistency
             normalized_path = os.path.normpath(file_path)
