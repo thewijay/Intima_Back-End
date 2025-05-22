@@ -118,8 +118,8 @@ python manage.py list_documents
 python manage.py delete_all_documents --confirm
 
 # Delete a single document with UUID
-python manage.py delete_document 3776760f-90e1-41bf-bd10-d61c5951ef24
+python manage.py delete_document <uuid>
 
 # Delete multiple documents with UUID
-python manage.py delete_document 3776760f-90e1-41bf-bd10-d61c5951ef24 b5127c29-dc62-42b7-b683-bb5505d84f86
+python manage.py delete_document <uuid> <uuid>
 ```
