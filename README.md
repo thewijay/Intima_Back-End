@@ -107,6 +107,8 @@ docker builder prune
 ```
 
 ### In django_app container
+
+#### Documents managing
 ```
 # Process newly added documents
 python manage.py process_documents
@@ -122,4 +124,27 @@ python manage.py delete_document <uuid>
 
 # Delete multiple documents with UUID
 python manage.py delete_document <uuid> <uuid>
+```
+
+#### Chat Testing
+```
+# Test the chat API
+curl -X POST http://localhost:8000/ai/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the main topic of document A?", "limit": 2, "model": "gpt-4o-mini"}'
+
+curl -X POST http://localhost:8000/ai/search/ \
+  -H "Content-Type: application/json" \
+  -d '{"question": "machine learning", "limit": 5}'
+
+# Test with gpt-4o-mini (default)
+curl -X POST http://localhost:8000/ai/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Explain AI in healthcare", "model": "gpt-4o-mini"}'
+
+# Check system health
+curl -X GET http://localhost:8000/ai/health/
+
+# Get document statistics
+curl -X GET http://localhost:8000/ai/stats/
 ```

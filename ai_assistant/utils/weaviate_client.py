@@ -5,6 +5,7 @@ from weaviate.classes.config import Configure
 from weaviate.auth import AuthApiKey  # Correct import to avoid deprecation warning
 from uuid import uuid5, NAMESPACE_URL
 import os
+from django.utils import timezone
 
 class WeaviateManager:
     def __init__(self, admin_access=False):
@@ -169,17 +170,17 @@ class WeaviateManager:
             print(f"Error storing document: {e}")
             raise
 
-    
-    def search_documents(self, query, limit=5):
-        """Search for documents similar to the query"""
+    def search_documents(self, query, limit=5, embedding_dimensions=None):
+        """Search for documents similar to the query using text-embedding-3-large"""
         from knowledgebase.vectorization import generate_embedding
         
         try:
             # Ensure connection is active
             self.ensure_connected()
             
-            # Generate embedding for the query
-            query_embedding = generate_embedding(query)
+            # Generate embedding for the query with optional dimensions
+            query_embedding = generate_embedding(query, dimensions=embedding_dimensions)
+            logger.info(f"Generated query embedding with {len(query_embedding)} dimensions")
             
             # Get the Document collection
             documents = self.collections.get("Document")
@@ -188,8 +189,11 @@ class WeaviateManager:
             result = documents.query.near_vector(
                 near_vector=query_embedding,
                 limit=limit,
-                return_properties=["title", "content", "file_path"]
+                return_properties=["title", "content", "file_path"],
+                include_vector=False
             )
+            
+            print(f"Search completed: found {len(result.objects)} results")
             
             # Return the objects
             return result.objects
