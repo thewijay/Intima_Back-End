@@ -179,7 +179,7 @@ class WeaviateManager:
             
             # Generate embedding for the query with optional dimensions
             query_embedding = generate_embedding(query, dimensions=embedding_dimensions)
-            print(f"Generated query embedding with {len(query_embedding)} dimensions")
+            logger.info(f"Generated query embedding with {len(query_embedding)} dimensions")
             
             # Get the Document collection
             documents = self.collections.get("Document")
