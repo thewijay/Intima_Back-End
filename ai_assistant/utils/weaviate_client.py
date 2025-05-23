@@ -5,6 +5,7 @@ from weaviate.classes.config import Configure
 from weaviate.auth import AuthApiKey  # Correct import to avoid deprecation warning
 from uuid import uuid5, NAMESPACE_URL
 import os
+from django.utils import timezone
 
 class WeaviateManager:
     def __init__(self, admin_access=False):
