@@ -54,7 +54,7 @@ git checkout Dev
 This command will build the images and start the containers:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.dev up -d
 ```
 
 ---
@@ -73,19 +73,18 @@ docker exec -it django_app bash
 python manage.py createsuperuser
 ```
 
-## give your creditials and create a super user.
+#### give your creditials and create a super user.
+
+After you can exit from the django_app container using this:
+```
+exit
+```
 
 ---
 
 ### 6. Access the App
 
 Admin Panel: http://localhost:8000/admin/
-
-## You can exit from the main container using this:
-
-```
-exit
-```
 
 ---
 
