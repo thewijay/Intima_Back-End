@@ -280,7 +280,7 @@ class HealthCheckAPIView(APIView):
                 "embedding": "text-embedding-3-large",
                 "chat": "gpt-4o-mini (default)"
             },
-            "timestamp": "2025-05-22T22:36:00+05:30"
+            "timestamp": timezone.now().isoformat()
         })
 
 class DocumentStatsAPIView(APIView):
