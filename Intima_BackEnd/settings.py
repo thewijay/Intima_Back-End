@@ -141,7 +141,7 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # Or restrict to specific domains in production
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
-    "http://192.168.8.165:8081",  # if accessing from mobile Expo dev
+    "http://192.168.227.213:8081",  # if accessing from mobile Expo dev
     "http://192.168.8.100:8081",
 ]
 
