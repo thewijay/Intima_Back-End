@@ -204,8 +204,7 @@ class WeaviateManager:
 
             
         except Exception as e:
-            print(f"Error searching documents: {e}")  # Keep this as print for now
-            logger.error(f"Error searching documents: {e}")  # Add proper logging
+            logger.error(f"Error searching documents: {e}")
             import traceback
             traceback.print_exc()
             return []
