@@ -10,6 +10,8 @@ from knowledgebase.vectorization import generate_embedding
 import logging
 import os
 from typing import List, Dict, Any
+from django.utils import timezone
+from .utils.prompt_manager import PromptManager
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -120,27 +122,23 @@ class SearchAPIView(APIView):
             return truncated + "..."
 
 class ChatAPIView(APIView):
-    """API endpoint for chat using gpt-4o-mini with text-embedding-3-large for context retrieval"""
+    """Enhanced API endpoint for chat with a single default prompt from prompts directory"""
     
     throttle_classes = [ChatRateThrottle]
-    
+
     def post(self, request):
         try:
-            # Validate input
+            # Validate required input
             question = request.data.get('question', '').strip()
             if not question:
                 return Response(
                     {"error": "Question is required and cannot be empty"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            default_prompt_file = 'default_prompt.txt'  # Change as needed
             
-            if len(question) > 1000:
-                return Response(
-                    {"error": "Question is too long. Maximum 1000 characters allowed."}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Validate limit parameter
+            # Validate limit
             limit = request.data.get('limit', 3)
             try:
                 limit = int(limit)
@@ -149,88 +147,68 @@ class ChatAPIView(APIView):
             except (ValueError, TypeError):
                 limit = 3
             
-            # Use gpt-4o-mini as the default model (cost-efficient)
+            # Model validation
             model = request.data.get('model', 'gpt-4o-mini')
-            allowed_models = ['gpt-4o-mini']
+            allowed_models = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-4']
             if model not in allowed_models:
                 model = 'gpt-4o-mini'
             
-            logger.info(f"Chat request: '{question[:50]}...' with {limit} context docs using {model}")
-            
-            # Search for relevant documents using text-embedding-3-large
+            logger.info(f"Chat request using prompt: '{default_prompt_file}' for question: '{question[:50]}...'")
+
+            # Load prompt
+            prompt_manager = PromptManager()
+            custom_prompt = prompt_manager.load_prompt(default_prompt_file)
+            if custom_prompt is None:
+                custom_prompt = prompt_manager.get_default_prompt()
+                logger.warning(f"Prompt file '{default_prompt_file}' not found, using fallback prompt")
+
+            # Search in vector DB
             with WeaviateManager(admin_access=True) as manager:
-                results = manager.search_documents(question, limit=limit)
-                
-                # Extract content from results to use as context
+                logger.debug(f"Searching documents for question: '{question}' with limit: {limit}")
+                try:
+                    results = manager.search_documents(question, limit=limit)
+                    logger.debug(f"Search returned {len(results)} results")
+                except Exception as search_error:
+                    logger.error(f"Search failed: {search_error}", exc_info=True)
+                    results = []
+
+                # Build context from results
                 context_parts = []
                 sources = []
-                
+
                 for i, result in enumerate(results):
                     try:
                         content = result.properties.get("content", "").strip()
                         title = result.properties.get("title", f"Document {i+1}")
-                        
+                        logger.debug(f"Result {i+1}: {title}, content length: {len(content)}")
+
                         if content:
-                            context_parts.append(f"Document {i+1} ({title}):\n{content}")
+                            context_parts.append(f"Document: {title}\n{content}")
                             sources.append(title)
                     except Exception as e:
-                        logger.warning(f"Error processing context result {i}: {e}")
+                        logger.warning(f"Error processing result {i}: {e}")
                         continue
-                
-                context = "\n\n".join(context_parts)
-                
-                if not context:
+
+                if not context_parts:
                     return Response({
-                        "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing your question or check if the relevant documents have been uploaded.",
+                        "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability.",
                         "sources": [],
                         "context_used": False,
-                        "model_used": model
+                        "model_used": model,
+                        "prompt_file_used": default_prompt_file
                     })
-                
-                # Initialize OpenAI client
-                openai_api_key = os.environ.get('OPENAI_API_KEY') or getattr(settings, 'OPENAI_API_KEY', None)
-                if not openai_api_key:
-                    logger.error("OpenAI API key not found")
-                    return Response(
-                        {"error": "AI service is not configured properly"}, 
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                
-                client = OpenAI(api_key=openai_api_key)
-                
-                # Prepare messages for OpenAI
-                system_message = """You are a helpful AI assistant. Answer questions based on the provided context documents. 
 
-Guidelines:
-- Use only the information from the provided context
-- If the context doesn't contain enough information to answer the question, say so clearly
-- Be concise but comprehensive
-- If you're uncertain about something, express that uncertainty
-- Cite which document(s) you're referencing when possible"""
+                # Properly formatted context with separators
+                context = "\n\n".join(["=" * 50 + "\n" + part for part in context_parts])
 
-                user_message = f"""Context Documents:
-{context}
-
-Question: {question}
-
-Please answer the question based on the context provided above."""
-
-                # Generate response using gpt-4o-mini (cost-efficient model)
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": user_message}
-                    ],
-                    temperature=0.3,  # Lower temperature for more focused responses
-                    max_tokens=1000,  # Limit response length
+                # Generate response
+                answer = self._generate_response_with_custom_prompt(
+                    question=question,
+                    context=context,
+                    custom_prompt=custom_prompt,
+                    model=model
                 )
-                
-                answer = response.choices[0].message.content
-                
-                logger.info(f"Chat completed successfully with {len(sources)} sources using {model}")
-                
-                # Return the response
+
                 return Response({
                     "answer": answer,
                     "sources": sources,
@@ -238,18 +216,58 @@ Please answer the question based on the context provided above."""
                     "model_used": model,
                     "embedding_model": "text-embedding-3-large",
                     "query": question,
-                    "cost_info": {
-                        "embedding_model": "text-embedding-3-large ($0.00013/1K tokens)",
-                        "chat_model": f"{model} ({'$0.15/1M input, $0.60/1M output tokens' if model == 'gpt-4o-mini' else 'varies'}"
+                    "prompt_file_used": default_prompt_file,
+                    "context_summary": {
+                        "total_sources": len(sources),
+                        "context_length": len(context)
                     }
                 })
-                
+
         except Exception as e:
             logger.error(f"Chat API error: {e}", exc_info=True)
             return Response(
                 {"error": "An error occurred while processing your request. Please try again."}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def _generate_response_with_custom_prompt(self, question, context, custom_prompt, model):
+        """Generate AI response using custom prompt and context"""
+        system_message = f"""{custom_prompt}
+
+CONTEXT HANDLING RULES:
+- Use ONLY the information provided in the context documents below
+- If the context doesn't contain enough information, clearly state this
+- Never make up information not present in the context
+- Always cite which documents you're referencing"""
+
+        user_message = f"""CONTEXT DOCUMENTS:
+{context}
+
+QUESTION: {question}
+
+Please answer the question based on the context provided above."""
+
+        try:
+            openai_api_key = os.environ.get('OPENAI_API_KEY')
+            client = OpenAI(api_key=openai_api_key)
+
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,
+                max_tokens=1000,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error generating AI response: {e}", exc_info=True)
+            return "I apologize, but I encountered an error while generating the response. Please try again."
+
+
 
 class HealthCheckAPIView(APIView):
     """Health check endpoint to verify system status"""
