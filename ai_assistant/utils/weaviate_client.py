@@ -8,7 +8,7 @@ import os
 from django.utils import timezone
 import logging
 
-# Set up logging  ← ADD THIS LINE
+# Set up logging
 logger = logging.getLogger(__name__)
 
 class WeaviateManager:
