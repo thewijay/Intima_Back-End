@@ -6,6 +6,10 @@ from weaviate.auth import AuthApiKey  # Correct import to avoid deprecation warn
 from uuid import uuid5, NAMESPACE_URL
 import os
 from django.utils import timezone
+import logging
+
+# Set up logging  ← ADD THIS LINE
+logger = logging.getLogger(__name__)
 
 class WeaviateManager:
     def __init__(self, admin_access=False):
@@ -197,7 +201,11 @@ class WeaviateManager:
             
             # Return the objects
             return result.objects
+
             
         except Exception as e:
-            print(f"Error searching documents: {e}")
+            print(f"Error searching documents: {e}")  # Keep this as print for now
+            logger.error(f"Error searching documents: {e}")  # Add proper logging
+            import traceback
+            traceback.print_exc()
             return []
