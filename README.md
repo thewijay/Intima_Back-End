@@ -2,7 +2,7 @@
 
 **Intima** is an AI-Based Sexual and Wellness Healthcare Assistant developed to help individuals confidently discuss and explore sensitive health concerns related to sexual health, gynecology, and wellness. This backend service powers intelligent document retrieval and chat-based interaction, making healthcare information more accessible and private.
 
-This project is developed as part of an academic module in the **2nd year, 2nd semester** by a group of undergraduate students at the [Sabaragamuwa University of Sri Lanka](https://sab.ac.lk/).
+This project is developed as part of the **Capstone Project** in the 2nd year, 2nd semester by a group of undergraduate students at the [Sabaragamuwa University of Sri Lanka](https://sab.ac.lk/).
 
 ---
 
@@ -160,7 +160,8 @@ curl -X GET http://localhost:8000/ai/stats/
 
 ## 🎓 Academic Acknowledgment
 
-This project is a proud outcome of collaborative learning and innovation at the  
+This project is a proud outcome of our **Capstone Project** module at the  
 🌱 **[Sabaragamuwa University of Sri Lanka](https://sab.ac.lk/)** – where creativity meets real-world impact.
 
 We thank our mentors and the Faculty of Computing for the continued support and academic inspiration.
+
