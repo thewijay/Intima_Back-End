@@ -17,6 +17,10 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
 from django.utils import timezone
 import uuid
+from django.db.models import Max
+from .models import Conversation,ChatMessage
+from .serializers import ChatMessageSerializer
+from .serializers import ConversationSerializer
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -127,6 +131,14 @@ class SearchAPIView(APIView):
             return truncated + "..."
 
 
+class ConversationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        conversations = Conversation.objects.filter(user=request.user, is_deleted=False).order_by('-last_updated')
+        serializer = ConversationSerializer(conversations, many=True)
+        return Response(serializer.data)
+        
 class ChatAPIView(APIView):
     """Enhanced API endpoint for React Native chat integration"""
     
@@ -233,6 +245,17 @@ class ChatAPIView(APIView):
                     model=model
                 )
 
+                # Save message to history
+                ChatMessage.objects.create(
+                    user=user,
+                    conversation_id=conversation_id,
+                    message_id=message_id,
+                    question=question,
+                    answer=answer,
+                    model_used=model,
+                    sources=sources,
+                )
+
                 # Enhanced response for React Native
                 return Response({
                     "success": True,  # Success indicator
@@ -314,8 +337,46 @@ Please answer the question based on the context provided above."""
             return "I apologize, but I encountered an error while generating the response. Please try again."
 
 
+class ChatHistoryAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        conversation_id = request.query_params.get('conversation_id')
+        if not conversation_id:
+            return Response({"error": "conversation_id is required"}, status=400)
 
+        messages = ChatMessage.objects.filter(user=request.user, conversation_id=conversation_id).order_by('timestamp')
+        serializer = ChatMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+class ChatHistoryListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Group by conversation_id, get latest message timestamp and latest question
+        latest_conversations = (
+            ChatMessage.objects
+            .filter(user=user)
+            .values('conversation_id')
+            .annotate(
+                last_message_time=Max('timestamp'),
+                last_question=Max('question')
+            )
+            .order_by('-last_message_time')
+        )
+
+        return Response([
+            {
+                "conversation_id": item["conversation_id"],
+                "last_message_time": item["last_message_time"],
+                "last_question": item["last_question"],
+            }
+            for item in latest_conversations
+        ])
 
 class HealthCheckAPIView(APIView):
     """Health check endpoint to verify system status"""
