@@ -3,8 +3,6 @@ from django.utils.dateformat import format
 from .models import Conversation, ChatMessage
 
 class ChatMessageSerializer(serializers.ModelSerializer):
-    conversation_id = serializers.UUIDField(source='conversation.id', read_only=True)
-
     class Meta:
         model = ChatMessage
         fields = '__all__'
@@ -14,7 +12,7 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ['id', 'title', 'created_at', 'last_updated', 'last_message']
+        fields = ['id', 'conversation_id', 'title', 'created_at', 'last_updated', 'last_message']
 
     def get_last_message(self, obj):
         last_msg = obj.messages.order_by('-timestamp').first()

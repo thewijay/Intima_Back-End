@@ -22,7 +22,7 @@ Make sure you have the following installed:
 ---
 
 ## 📦 Project Structure (Simplified)
-
+```
 Intima_Back-End/
 │
 ├── backend/ # Django project
@@ -32,6 +32,7 @@ Intima_Back-End/
 ├── Dockerfile # Backend Docker build
 ├── docker-compose.yml # Compose setup
 └── requirements.txt # Python dependencies
+```
 
 ---
 
@@ -53,7 +54,7 @@ git checkout Dev
 
 ### 3. Add your local ip address to these files
 
-- .env.dev -> DJANGO_ALLOWED_HOSTS -> add yourip after a comma
+- .env.dev -> DJANGO_ALLOWED_HOSTS -> add your IP after a comma
 - settings.py -> CORS_ALLOWED_ORIGINS -> "yourip:8081,"
 - In frontend -> hooks/api/auth.ts -> onst API_BASE_URL = 'http://yourip:8000/api';
 
@@ -62,7 +63,7 @@ git checkout Dev
 This command will build the images and start the containers:
 
 ```bash
-docker compose --env-file .env.dev up -d
+docker compose --env-file .env.dev up -d --build 
 ```
 
 ---

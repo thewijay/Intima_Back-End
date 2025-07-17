@@ -7,6 +7,7 @@ User = get_user_model()
 
 class Conversation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation_id = models.CharField(max_length=100, unique=True, null=True, blank=True)  # Frontend conversation ID
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations')
     title = models.CharField(max_length=255, blank=True)  # Optional: set after first message
     created_at = models.DateTimeField(auto_now_add=True)
