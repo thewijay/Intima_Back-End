@@ -12,6 +12,11 @@ import os
 from typing import List, Dict, Any
 from django.utils import timezone
 from .utils.prompt_manager import PromptManager
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication 
+from rest_framework.authentication import TokenAuthentication
+from django.utils import timezone
+import uuid
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -121,22 +126,34 @@ class SearchAPIView(APIView):
         else:
             return truncated + "..."
 
+
 class ChatAPIView(APIView):
-    """Enhanced API endpoint for chat with a single default prompt from prompts directory"""
+    """Enhanced API endpoint for React Native chat integration"""
     
+    # Add authentication for React Native
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     throttle_classes = [ChatRateThrottle]
 
     def post(self, request):
         try:
+            # Get user information for React Native
+            user = request.user
+            
             # Validate required input
             question = request.data.get('question', '').strip()
             if not question:
-                return Response(
-                    {"error": "Question is required and cannot be empty"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({
+                    "success": False,  # Add success field for React Native
+                    "error": "Question is required and cannot be empty",
+                    "error_code": "MISSING_QUESTION"  # Add error codes
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-            default_prompt_file = 'default_prompt.txt'  # Change as needed
+            # React Native specific fields
+            conversation_id = request.data.get('conversation_id', str(uuid.uuid4()))
+            message_id = request.data.get('message_id', str(uuid.uuid4()))
+
+            default_prompt_file = 'default_prompt.txt'
             
             # Validate limit
             limit = request.data.get('limit', 3)
@@ -153,7 +170,7 @@ class ChatAPIView(APIView):
             if model not in allowed_models:
                 model = 'gpt-4o-mini'
             
-            logger.info(f"Chat request using prompt: '{default_prompt_file}' for question: '{question[:50]}...'")
+            logger.info(f"Chat request from user {user.username} (mobile): '{question[:50]}...'")
 
             # Load prompt
             prompt_manager = PromptManager()
@@ -191,11 +208,18 @@ class ChatAPIView(APIView):
 
                 if not context_parts:
                     return Response({
+                        "success": False,  # React Native success indicator
+                        "message": "No relevant information found",
                         "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability.",
                         "sources": [],
                         "context_used": False,
                         "model_used": model,
-                        "prompt_file_used": default_prompt_file
+                        "prompt_file_used": default_prompt_file,
+                        "conversation_id": conversation_id,
+                        "message_id": message_id,
+                        "user_id": user.id,
+                        "timestamp": timezone.now().isoformat(),
+                        "error_code": "NO_CONTEXT"
                     })
 
                 # Properly formatted context with separators
@@ -209,36 +233,58 @@ class ChatAPIView(APIView):
                     model=model
                 )
 
+                # Enhanced response for React Native
                 return Response({
-                    "answer": answer,
+                    "success": True,  # Success indicator
+                    "message": "Response generated successfully",
+                    "answer":  answer,
                     "sources": sources,
                     "context_used": True,
                     "model_used": model,
                     "embedding_model": "text-embedding-3-large",
                     "query": question,
                     "prompt_file_used": default_prompt_file,
+                    "conversation_id": conversation_id,
+                    "message_id": message_id,
+                    "user_id": user.id,
+                    "timestamp": timezone.now().isoformat(),
                     "context_summary": {
                         "total_sources": len(sources),
-                        "context_length": len(context)
+                        "context_length": len(context),
+                        "search_results_count": len(results)
+                    },
+                    # React Native UI helpers
+                    "ui_metadata": {
+                        "show_sources": len(sources) > 0,
+                        "message_type": "ai_response",
+                        "requires_follow_up": False
                     }
                 })
 
         except Exception as e:
-            logger.error(f"Chat API error: {e}", exc_info=True)
-            return Response(
-                {"error": "An error occurred while processing your request. Please try again."}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Chat API error for user {getattr(request.user, 'username', 'anonymous')}: {e}", exc_info=True)
+            return Response({
+                "success": False,
+                "message": "An error occurred while processing your request",
+                "error": str(e),
+                "error_code": "INTERNAL_ERROR",
+                "conversation_id": request.data.get('conversation_id'),
+                "message_id": request.data.get('message_id'),
+                "timestamp": timezone.now().isoformat()
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _generate_response_with_custom_prompt(self, question, context, custom_prompt, model):
         """Generate AI response using custom prompt and context"""
+        # Enhanced system message for health assistant
         system_message = f"""{custom_prompt}
 
 CONTEXT HANDLING RULES:
 - Use ONLY the information provided in the context documents below
 - If the context doesn't contain enough information, clearly state this
 - Never make up information not present in the context
-- Always cite which documents you're referencing"""
+- Always cite which documents you're referencing
+- Provide helpful, accurate, and compassionate responses
+- Focus on sexual health, reproductive wellness, and contraception topics"""
 
         user_message = f"""CONTEXT DOCUMENTS:
 {context}
@@ -266,6 +312,8 @@ Please answer the question based on the context provided above."""
         except Exception as e:
             logger.error(f"Error generating AI response: {e}", exc_info=True)
             return "I apologize, but I encountered an error while generating the response. Please try again."
+
+
 
 
 
