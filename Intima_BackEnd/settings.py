@@ -139,10 +139,11 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Or restrict to specific domains in production
 
+# Get CORS allowed origins from environment variable
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8081",
-    "http://192.168.227.213:8081",  # if accessing from mobile Expo dev
-    "http://192.168.8.100:8081",
+    origin.strip() 
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:8081").split(",") 
+    if origin.strip()
 ]
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
