@@ -137,7 +137,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Or restrict to specific domains in production
+CORS_ALLOW_ALL_ORIGINS = True  # Or restrict to specific domains in production
 
 # Get CORS allowed origins from environment variable
 CORS_ALLOWED_ORIGINS = [
