@@ -182,6 +182,10 @@ class WeaviateManager:
             # Ensure connection is active
             self.ensure_connected()
             
+            # Use consistent 1536 dimensions if none specified
+            if embedding_dimensions is None:
+                embedding_dimensions = 1536
+            
             # Generate embedding for the query with optional dimensions
             query_embedding = generate_embedding(query, dimensions=embedding_dimensions)
             logger.info(f"Generated query embedding with {len(query_embedding)} dimensions")

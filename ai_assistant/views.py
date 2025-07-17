@@ -17,6 +17,10 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
 from django.utils import timezone
 import uuid
+from django.db.models import Max
+from .models import Conversation,ChatMessage
+from .serializers import ChatMessageSerializer
+from .serializers import ConversationSerializer
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -127,6 +131,14 @@ class SearchAPIView(APIView):
             return truncated + "..."
 
 
+class ConversationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        conversations = Conversation.objects.filter(user=request.user, is_deleted=False).order_by('-last_updated')
+        serializer = ConversationSerializer(conversations, many=True)
+        return Response(serializer.data)
+        
 class ChatAPIView(APIView):
     """Enhanced API endpoint for React Native chat integration"""
     
@@ -137,8 +149,10 @@ class ChatAPIView(APIView):
 
     def post(self, request):
         try:
-            # Get user information for React Native
-            user = request.user
+            # Get user information for React Native (handle anonymous users for testing)
+            user = getattr(request, 'user', None)
+            if user and user.is_anonymous:
+                user = None
             
             # Validate required input
             question = request.data.get('question', '').strip()
@@ -170,7 +184,8 @@ class ChatAPIView(APIView):
             if model not in allowed_models:
                 model = 'gpt-4o-mini'
             
-            logger.info(f"Chat request from user {user.username} (mobile): '{question[:50]}...'")
+            username = user.username if user else "anonymous"
+            logger.info(f"Chat request from user {username} (mobile): '{question[:50]}...'")
 
             # Load prompt
             prompt_manager = PromptManager()
@@ -186,8 +201,21 @@ class ChatAPIView(APIView):
                     results = manager.search_documents(question, limit=limit)
                     logger.debug(f"Search returned {len(results)} results")
                 except Exception as search_error:
-                    logger.error(f"Search failed: {search_error}", exc_info=True)
-                    results = []
+                    logger.error(f"Vector search failed: {search_error}", exc_info=True)
+                    
+                    # Try fallback search
+                    logger.info("Attempting fallback document search...")
+                    results = self._fallback_document_search(question, limit)
+                    logger.debug(f"Fallback search returned {len(results)} results")
+                    
+                    # Check for specific error types for user feedback
+                    error_message = str(search_error)
+                    if "insufficient_quota" in error_message:
+                        search_error_type = "OpenAI API quota exceeded"
+                    elif "vector lengths don't match" in error_message:
+                        search_error_type = "Vector dimension mismatch in knowledge base"
+                    else:
+                        search_error_type = "Knowledge base search error"
 
                 # Build context from results
                 context_parts = []
@@ -206,18 +234,59 @@ class ChatAPIView(APIView):
                         logger.warning(f"Error processing result {i}: {e}")
                         continue
 
+                # Always create conversation and save message, even if no context found
+                # Skip conversation creation if user is None (for testing)
+                conversation = None
+                if user:
+                    conversation, created = Conversation.objects.get_or_create(
+                        conversation_id=conversation_id,
+                        user=user,
+                        defaults={
+                            'title': question[:50] + "..." if len(question) > 50 else question
+                        }
+                    )
+                    
+                    # Update conversation timestamp
+                    conversation.last_updated = timezone.now()
+                    conversation.save(update_fields=['last_updated'])
+
                 if not context_parts:
+                    # No context found - determine the appropriate response based on search results
+                    if 'search_error_type' in locals():
+                        # There was a search error
+                        if "quota exceeded" in search_error_type:
+                            answer = "I'm currently unable to search the knowledge base due to API limits. Please contact support or try again later."
+                        elif "dimension mismatch" in search_error_type:
+                            answer = "The knowledge base needs to be updated. Please contact support to resolve this technical issue."
+                        else:
+                            answer = f"I'm experiencing technical difficulties ({search_error_type}). Please try again or contact support."
+                    else:
+                        # Search worked but no relevant documents found
+                        answer = "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability."
+                    
+                    # Save message only if user is available
+                    if user:
+                        ChatMessage.objects.create(
+                            user=user,
+                            conversation=conversation,
+                            message_id=message_id,
+                            question=question,
+                            answer=answer,
+                            model_used=model,
+                            sources=[],
+                        )
+                    
                     return Response({
                         "success": False,  # React Native success indicator
                         "message": "No relevant information found",
-                        "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability.",
+                        "answer": answer,
                         "sources": [],
                         "context_used": False,
                         "model_used": model,
                         "prompt_file_used": default_prompt_file,
                         "conversation_id": conversation_id,
                         "message_id": message_id,
-                        "user_id": user.id,
+                        "user_id": user.id if user else None,
                         "timestamp": timezone.now().isoformat(),
                         "error_code": "NO_CONTEXT"
                     })
@@ -225,13 +294,32 @@ class ChatAPIView(APIView):
                 # Properly formatted context with separators
                 context = "\n\n".join(["=" * 50 + "\n" + part for part in context_parts])
 
-                # Generate response
-                answer = self._generate_response_with_custom_prompt(
-                    question=question,
-                    context=context,
-                    custom_prompt=custom_prompt,
-                    model=model
-                )
+                # Generate response - try OpenAI first, fallback to simple response
+                try:
+                    answer = self._generate_response_with_custom_prompt(
+                        question=question,
+                        context=context,
+                        custom_prompt=custom_prompt,
+                        model=model
+                    )
+                    ai_model_used = model
+                except Exception as openai_error:
+                    logger.warning(f"OpenAI response generation failed: {openai_error}")
+                    # Use simple fallback response
+                    answer = self._generate_simple_response(question, context)
+                    ai_model_used = "fallback-simple"
+
+                # Save message to history (conversation was already created above)
+                if user:
+                    ChatMessage.objects.create(
+                        user=user,
+                        conversation=conversation,
+                        message_id=message_id,
+                        question=question,
+                        answer=answer,
+                        model_used=ai_model_used,
+                        sources=sources,
+                    )
 
                 # Enhanced response for React Native
                 return Response({
@@ -240,13 +328,13 @@ class ChatAPIView(APIView):
                     "answer":  answer,
                     "sources": sources,
                     "context_used": True,
-                    "model_used": model,
-                    "embedding_model": "text-embedding-3-large",
+                    "model_used": ai_model_used,
+                    "embedding_model": "text-embedding-3-large" if 'search_error_type' not in locals() else "fallback-search",
                     "query": question,
                     "prompt_file_used": default_prompt_file,
                     "conversation_id": conversation_id,
                     "message_id": message_id,
-                    "user_id": user.id,
+                    "user_id": user.id if user else None,
                     "timestamp": timezone.now().isoformat(),
                     "context_summary": {
                         "total_sources": len(sources),
@@ -257,7 +345,8 @@ class ChatAPIView(APIView):
                     "ui_metadata": {
                         "show_sources": len(sources) > 0,
                         "message_type": "ai_response",
-                        "requires_follow_up": False
+                        "requires_follow_up": False,
+                        "is_fallback": ai_model_used == "fallback-simple"
                     }
                 })
 
@@ -313,9 +402,65 @@ Please answer the question based on the context provided above."""
             logger.error(f"Error generating AI response: {e}", exc_info=True)
             return "I apologize, but I encountered an error while generating the response. Please try again."
 
+    def _generate_simple_response(self, question, context):
+        """
+        Generate a simple response without OpenAI when API is unavailable
+        This is a temporary fallback solution
+        """
+        if not context:
+            return "I couldn't find relevant information to answer your question. Please try rephrasing."
+        
+        # Simple template-based response
+        response = f"Based on the available information:\n\n{context[:800]}"
+        if len(context) > 800:
+            response += "...\n\n[Note: This is a simplified response due to temporary API limitations.]"
+        else:
+            response += "\n\n[Note: This is a simplified response due to temporary API limitations.]"
+            
+        return response
 
+class ChatHistoryAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        conversation_id = request.query_params.get('conversation_id')
+        if not conversation_id:
+            return Response({"error": "conversation_id is required"}, status=400)
 
+        try:
+            # Get the conversation first
+            conversation = Conversation.objects.get(conversation_id=conversation_id, user=request.user, is_deleted=False)
+            messages = ChatMessage.objects.filter(user=request.user, conversation=conversation).order_by('timestamp')
+            serializer = ChatMessageSerializer(messages, many=True)
+            return Response({
+                "success": True,
+                "conversation_id": conversation_id,
+                "conversation_title": conversation.title,
+                "messages": serializer.data
+            })
+        except Conversation.DoesNotExist:
+            return Response({"error": "Conversation not found"}, status=404)
+
+class ChatHistoryListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Get conversations directly from the Conversation model
+        conversations = Conversation.objects.filter(
+            user=user, 
+            is_deleted=False
+        ).order_by('-last_updated')
+
+        # Use the existing ConversationSerializer
+        serializer = ConversationSerializer(conversations, many=True)
+        return Response({
+            "success": True,
+            "conversations": serializer.data
+        })
 
 class HealthCheckAPIView(APIView):
     """Health check endpoint to verify system status"""
@@ -386,3 +531,127 @@ class DocumentStatsAPIView(APIView):
                 {"error": "Unable to retrieve document statistics"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def _fallback_document_search(self, query, limit=3):
+        """
+        Fallback search method using simple text matching when vector search fails
+        This is a temporary solution until OpenAI quota issues are resolved
+        """
+        try:
+            import os
+            import glob
+            from django.conf import settings
+            
+            # Search in the documents directory
+            docs_path = os.path.join(settings.BASE_DIR, 'documents')
+            if not os.path.exists(docs_path):
+                return []
+                
+            results = []
+            query_words = query.lower().split()
+            
+            # Get all text files in documents directory
+            txt_files = glob.glob(os.path.join(docs_path, '*.txt'))
+            
+            for file_path in txt_files[:limit * 2]:  # Check more files than limit
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Simple keyword matching
+                    content_lower = content.lower()
+                    matches = sum(1 for word in query_words if word in content_lower)
+                    
+                    if matches > 0:
+                        # Create a mock result object similar to Weaviate results
+                        mock_result = {
+                            'properties': {
+                                'title': os.path.basename(file_path).replace('.txt', '').replace('_', ' ').title(),
+                                'content': content[:500] + "..." if len(content) > 500 else content,
+                                'file_path': file_path
+                            }
+                        }
+                        
+                        results.append((matches, mock_result))
+                        
+                except Exception as e:
+                    logger.warning(f"Error reading file {file_path}: {e}")
+                    continue
+            
+            # Sort by number of matches and return top results
+            results.sort(key=lambda x: x[0], reverse=True)
+            return [result[1] for result in results[:limit]]
+            
+        except Exception as e:
+            logger.error(f"Fallback search failed: {e}")
+            return []
+
+class OpenAIStatusAPIView(APIView):
+    """Check OpenAI API key status and usage"""
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Initialize OpenAI client
+            api_key = getattr(settings, 'OPENAI_API_KEY', None)
+            if not api_key:
+                return Response({
+                    "success": False,
+                    "error": "OpenAI API key not configured",
+                    "status": "not_configured"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            client = OpenAI(api_key=api_key)
+            
+            # Test with a simple completion request
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "Hello"}],
+                    max_tokens=1
+                )
+                
+                return Response({
+                    "success": True,
+                    "status": "active",
+                    "message": "OpenAI API key is working",
+                    "model_used": "gpt-3.5-turbo",
+                    "api_key_prefix": api_key[:8] + "..." if api_key else None
+                })
+                
+            except Exception as openai_error:
+                error_str = str(openai_error)
+                
+                if "insufficient_quota" in error_str or "quota" in error_str.lower():
+                    return Response({
+                        "success": False,
+                        "status": "quota_exceeded",
+                        "error": "OpenAI API quota exceeded. Please check your billing.",
+                        "error_details": error_str,
+                        "api_key_prefix": api_key[:8] + "..." if api_key else None
+                    })
+                elif "invalid" in error_str.lower():
+                    return Response({
+                        "success": False,
+                        "status": "invalid_key",
+                        "error": "OpenAI API key is invalid",
+                        "error_details": error_str,
+                        "api_key_prefix": api_key[:8] + "..." if api_key else None
+                    })
+                else:
+                    return Response({
+                        "success": False,
+                        "status": "api_error",
+                        "error": f"OpenAI API error: {error_str}",
+                        "api_key_prefix": api_key[:8] + "..." if api_key else None
+                    })
+                    
+        except Exception as e:
+            logger.error(f"Error checking OpenAI status: {e}")
+            return Response({
+                "success": False,
+                "error": f"Failed to check OpenAI status: {str(e)}",
+                "status": "check_failed"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
