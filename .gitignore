@@ -2,6 +2,13 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+
+# Ignore collected static files
+staticfiles/
+
+
 
 # C extensions
 *.so
@@ -129,12 +136,16 @@ celerybeat.pid
 
 # Environments
 .env
+.env.dev
+.env*
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+myenv/
+*env/
 
 # Spyder project settings
 .spyderproject

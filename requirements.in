@@ -1,0 +1,21 @@
+Django
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+
+psycopg[binary]
+
+python-dotenv
+weaviate-client
+grpcio
+grpcio-tools
+protobuf
+
+requests
+validators
+humanize
+
+# Optional:
+boto3
+cryptography
+PyJWT

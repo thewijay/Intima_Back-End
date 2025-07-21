@@ -1,0 +1,50 @@
+# Core Django + REST Framework
+Django==5.2
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+djangorestframework-simplejwt==5.5.0
+
+# PostgreSQL support
+psycopg[binary]==3.2.6
+
+# Environment Variables
+python-dotenv==1.1.0
+# Or alternatively (preferred in larger projects)
+# python-decouple==3.8
+
+# Weaviate Client
+weaviate-client==4.14.1
+grpcio==1.71.0
+grpcio-tools==1.71.0
+protobuf==5.29.4
+
+# Optional Utility Packages (common in production/debugging)
+requests==2.32.3
+validators==0.34.0
+humanize==4.9.0
+beautifulsoup4==4.13.3
+lxml==5.2.1
+
+# AWS SDK (only if you're using S3 or boto)
+boto3==1.37.33
+botocore==1.37.33
+s3transfer==0.11.4
+
+# Security & Encryption
+cryptography==44.0.2
+PyJWT==2.9.0
+
+# Other dependencies...
+gunicorn==21.2.0 
+
+# Others you may need
+httpx==0.28.1
+urllib3==1.26.20
+charset-normalizer==3.3.2
+idna==3.7
+
+# Dependency Management (Optional but useful)
+pip-tools==7.4.1
+
+
+openai
