@@ -21,11 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+# Try to upgrade pip with timeout, but don't fail if it times out
+RUN pip install --upgrade pip --timeout 300 --retries 3 || echo "Pip upgrade failed, continuing with existing version"
+RUN pip install --no-cache-dir -r requirements.txt --timeout 300 --retries 5
 
 # Copy Django app code
 COPY . .
 
 CMD ["./entrypoint.sh"]
-
