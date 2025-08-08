@@ -866,23 +866,23 @@ class WelcomeMessageAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def get_welcome_message(self, user):
-        """Return the personalized welcome message content"""
+        """Return the personalized welcome message content with markdown formatting"""
         # Get user's first name, fallback to a generic greeting if not available
         first_name = user.first_name if user.first_name else "there"
         
-        return f"""Welcome, {first_name}!
+        return f"""# Welcome, {first_name}! 👋
 
-I'm Intima, your personal AI assistant for sexual and reproductive health. I'm here to provide you with accurate, confidential, and judgment-free information about:
+I'm **Intima**, your personal AI assistant for sexual and reproductive health. I'm here to provide you with accurate, confidential, and judgment-free information about:
 
-- Sexual health and wellness
-- Reproductive health and family planning
-- Birth control methods and options
-- Menstrual health and cycle tracking
-- Relationship and intimacy guidance
-- General health questions related to reproductive wellness
+- **Sexual health and wellness**
+- **Reproductive health and family planning**
+- **Birth control methods and options**
+- **Menstrual health and cycle tracking**
+- **Relationship and intimacy guidance**
+- **General health questions related to reproductive wellness**
 
-I'm trained on evidence-based medical information and can help answer your questions in a safe, private space. I'll use your profile information to provide personalized recommendations that are most relevant to you.
+I'm trained on *evidence-based medical information* and can help answer your questions in a safe, private space. I'll use your profile information to provide **personalized recommendations** that are most relevant to you.
 
 Feel free to ask me anything - no question is too personal or embarrassing!
 
-How can I help you today?"""
+## How can I help you today?"""
