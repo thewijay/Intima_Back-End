@@ -483,7 +483,8 @@ Please answer the question based on the context provided above, taking into acco
             context_parts.append(f"Sexual activity level: {user.sexually_active}")
         
         # Health information
-        if user.menstrual_cycle:
+        # Only include menstrual cycle for users who might menstruate
+        if user.menstrual_cycle and user.gender in ['female', 'other']:
             context_parts.append(f"Menstrual cycle details: {user.menstrual_cycle}")
         
         if user.medical_conditions:
@@ -869,7 +870,7 @@ class WelcomeMessageAPIView(APIView):
         # Get user's first name, fallback to a generic greeting if not available
         first_name = user.first_name if user.first_name else "there"
         
-        return f"""Welcome to Intima, {first_name}!
+        return f"""Welcome, {first_name}!
 
 I'm Intima, your personal AI assistant for sexual and reproductive health. I'm here to provide you with accurate, confidential, and judgment-free information about:
 
