@@ -70,6 +70,7 @@ class User(AbstractUser):
     medical_conditions = models.TextField(null=True, blank=True, verbose_name="Medical Conditions")
 
     profile_completed = models.BooleanField(default=False)
+    welcome_message_sent = models.BooleanField(default=False, verbose_name="Welcome Message Sent")
 
 
     groups = models.ManyToManyField(

@@ -261,8 +261,19 @@ class ChatAPIView(APIView):
                         else:
                             answer = f"I'm experiencing technical difficulties ({search_error_type}). Please try again or contact support."
                     else:
-                        # Search worked but no relevant documents found
-                        answer = "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability."
+                        # Search worked but no relevant documents found - try to give personalized response
+                        if user:
+                            user_context = self._build_user_context(user)
+                            if user_context:
+                                # Generate personalized response even without specific documents
+                                try:
+                                    answer = self._generate_response_without_context(question, user_context, custom_prompt, model)
+                                except Exception:
+                                    answer = "I couldn't find specific information in my knowledge base to answer your question. However, I'd be happy to help based on general sexual and reproductive health guidance. Could you provide more details about what you'd like to know?"
+                            else:
+                                answer = "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability."
+                        else:
+                            answer = "I couldn't find any relevant documents to answer your question. Please try rephrasing or check document availability."
                     
                     # Save message only if user is available
                     if user:
@@ -296,11 +307,15 @@ class ChatAPIView(APIView):
 
                 # Generate response - try OpenAI first, fallback to simple response
                 try:
+                    # Build user context for personalized responses
+                    user_context = self._build_user_context(user) if user else ""
+                    
                     answer = self._generate_response_with_custom_prompt(
                         question=question,
                         context=context,
                         custom_prompt=custom_prompt,
-                        model=model
+                        model=model,
+                        user_context=user_context
                     )
                     ai_model_used = model
                 except Exception as openai_error:
@@ -346,7 +361,8 @@ class ChatAPIView(APIView):
                         "show_sources": len(sources) > 0,
                         "message_type": "ai_response",
                         "requires_follow_up": False,
-                        "is_fallback": ai_model_used == "fallback-simple"
+                        "is_fallback": ai_model_used == "fallback-simple",
+                        "personalized": bool(user and any([user.first_name, user.date_of_birth, user.gender, user.medical_conditions]))
                     }
                 })
 
@@ -362,9 +378,9 @@ class ChatAPIView(APIView):
                 "timestamp": timezone.now().isoformat()
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def _generate_response_with_custom_prompt(self, question, context, custom_prompt, model):
-        """Generate AI response using custom prompt and context"""
-        # Enhanced system message for health assistant
+    def _generate_response_with_custom_prompt(self, question, context, custom_prompt, model, user_context=""):
+        """Generate AI response using custom prompt, context, and user profile"""
+        # Enhanced system message for health assistant with user awareness
         system_message = f"""{custom_prompt}
 
 CONTEXT HANDLING RULES:
@@ -373,14 +389,23 @@ CONTEXT HANDLING RULES:
 - Never make up information not present in the context
 - Always cite which documents you're referencing
 - Provide helpful, accurate, and compassionate responses
-- Focus on sexual health, reproductive wellness, and contraception topics"""
+- Focus on sexual health, reproductive wellness, and contraception topics
+
+USER PERSONALIZATION RULES:
+- Use the user profile information to provide personalized recommendations
+- Reference specific user details when relevant (age, gender, medical conditions, etc.)
+- Tailor advice based on user's demographic and health profile
+- Consider user's marital status, sexual activity level, and health conditions when applicable
+- Make responses more relevant and specific to the user's situation
+
+{user_context}"""
 
         user_message = f"""CONTEXT DOCUMENTS:
 {context}
 
 QUESTION: {question}
 
-Please answer the question based on the context provided above."""
+Please answer the question based on the context provided above, taking into account the user's profile for personalized advice."""
 
         try:
             openai_api_key = os.environ.get('OPENAI_API_KEY')
@@ -418,6 +443,100 @@ Please answer the question based on the context provided above."""
             response += "\n\n[Note: This is a simplified response due to temporary API limitations.]"
             
         return response
+    
+    def _build_user_context(self, user):
+        """Build user profile context for personalized responses"""
+        if not user:
+            return ""
+        
+        context_parts = []
+        
+        # Basic demographics
+        if user.first_name:
+            context_parts.append(f"User's name: {user.first_name}")
+        
+        if user.date_of_birth:
+            from datetime import date
+            today = date.today()
+            age = today.year - user.date_of_birth.year - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))
+            context_parts.append(f"User's age: {age} years old")
+        
+        if user.gender:
+            gender_display = dict(user._meta.get_field('gender').choices).get(user.gender, user.gender)
+            context_parts.append(f"Gender identity: {gender_display}")
+            if user.gender == 'other' and user.gender_other:
+                context_parts.append(f"Specific gender identity: {user.gender_other}")
+        
+        # Physical characteristics
+        if user.height_cm:
+            context_parts.append(f"Height: {user.height_cm} cm")
+        
+        if user.weight_kg:
+            context_parts.append(f"Weight: {user.weight_kg} kg")
+        
+        # Relationship and sexual health
+        if user.marital_status:
+            marital_display = dict(user._meta.get_field('marital_status').choices).get(user.marital_status, user.marital_status)
+            context_parts.append(f"Marital status: {marital_display}")
+        
+        if user.sexually_active:
+            context_parts.append(f"Sexual activity level: {user.sexually_active}")
+        
+        # Health information
+        if user.menstrual_cycle:
+            context_parts.append(f"Menstrual cycle details: {user.menstrual_cycle}")
+        
+        if user.medical_conditions:
+            context_parts.append(f"Medical conditions: {user.medical_conditions}")
+        
+        if context_parts:
+            user_context = f"""
+USER PROFILE INFORMATION:
+{chr(10).join(f"- {part}" for part in context_parts)}
+
+Use this information to provide personalized recommendations and advice that are most relevant to this user's situation."""
+            return user_context
+        
+        return ""
+
+    def _generate_response_without_context(self, question, user_context, custom_prompt, model):
+        """Generate personalized response when no documents are found but user context is available"""
+        system_message = f"""{custom_prompt}
+
+IMPORTANT: No specific documents were found in the knowledge base for this question.
+
+USER PERSONALIZATION RULES:
+- Use the user profile information to provide personalized general guidance
+- Reference specific user details when relevant (age, gender, medical conditions, etc.)
+- Provide helpful, accurate, and compassionate responses based on general sexual and reproductive health knowledge
+- Clearly indicate that this is general guidance and recommend consulting healthcare professionals for specific medical advice
+- Focus on sexual health, reproductive wellness, and contraception topics
+
+{user_context}"""
+
+        user_message = f"""QUESTION: {question}
+
+Since I don't have specific documents for this question, please provide general sexual and reproductive health guidance that would be most relevant to this user's profile. Always recommend consulting with healthcare professionals for personalized medical advice."""
+
+        try:
+            openai_api_key = os.environ.get('OPENAI_API_KEY')
+            client = OpenAI(api_key=openai_api_key)
+
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,
+                max_tokens=800,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error generating AI response without context: {e}", exc_info=True)
+            raise e
 
 class ChatHistoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -655,3 +774,114 @@ class OpenAIStatusAPIView(APIView):
                 "error": f"Failed to check OpenAI status: {str(e)}",
                 "status": "check_failed"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class WelcomeMessageAPIView(APIView):
+    """API endpoint for automatically sending welcome message when user first enters chat"""
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get welcome message if user needs it, automatically create conversation"""
+        try:
+            user = request.user
+            
+            # Check if user has already received welcome message
+            if user.welcome_message_sent:
+                return Response({
+                    "success": True,
+                    "needs_welcome": False,
+                    "message": "Welcome message already sent"
+                })
+            
+            # Create a new conversation for the welcome message
+            conversation_id = f"welcome_{int(timezone.now().timestamp() * 1000)}_{user.id}"
+            conversation = Conversation.objects.create(
+                conversation_id=conversation_id,
+                user=user,
+                title="Welcome to Intima"
+            )
+            
+            # Generate welcome message
+            welcome_message = self.get_welcome_message(user)
+            
+            # Create the welcome message in chat history
+            message_id = f"welcome_msg_{int(timezone.now().timestamp() * 1000)}"
+            ChatMessage.objects.create(
+                user=user,
+                conversation=conversation,
+                message_id=message_id,
+                question="", # Empty question since this is automatic
+                answer=welcome_message,
+                model_used="welcome-system",
+                sources=[],
+            )
+            
+            # Mark user as welcomed
+            user.welcome_message_sent = True
+            user.save(update_fields=['welcome_message_sent'])
+            
+            logger.info(f"Welcome message automatically sent to user {user.email}")
+            
+            return Response({
+                "success": True,
+                "needs_welcome": True,
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "welcome_message": welcome_message,
+                "timestamp": timezone.now().isoformat(),
+                "ui_metadata": {
+                    "message_type": "welcome_message",
+                    "is_automatic": True,
+                    "show_sources": False
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error sending automatic welcome message: {e}")
+            return Response({
+                "success": False,
+                "error": "Failed to send welcome message"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        """Mark welcome message as sent (fallback method)"""
+        try:
+            user = request.user
+            user.welcome_message_sent = True
+            user.save()
+            
+            return Response({
+                "success": True,
+                "message": "Welcome message marked as sent"
+            })
+            
+        except Exception as e:
+            logger.error(f"Error updating welcome status: {e}")
+            return Response({
+                "success": False,
+                "error": "Failed to update welcome status"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get_welcome_message(self, user):
+        """Return the personalized welcome message content"""
+        # Get user's first name, fallback to a generic greeting if not available
+        first_name = user.first_name if user.first_name else "there"
+        
+        return f"""Welcome to Intima, {first_name}!
+
+I'm Intima, your personal AI assistant for sexual and reproductive health. I'm here to provide you with accurate, confidential, and judgment-free information about:
+
+- Sexual health and wellness
+- Reproductive health and family planning
+- Birth control methods and options
+- Menstrual health and cycle tracking
+- Relationship and intimacy guidance
+- General health questions related to reproductive wellness
+
+I'm trained on evidence-based medical information and can help answer your questions in a safe, private space. I'll use your profile information to provide personalized recommendations that are most relevant to you.
+
+Feel free to ask me anything - no question is too personal or embarrassing!
+
+How can I help you today?"""
