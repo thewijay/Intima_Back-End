@@ -159,10 +159,17 @@ curl -X GET http://localhost:8000/ai/stats/
 
 ---
 
+## 📱 Frontend Repository
+The frontend of Intima is available here:  
+[Intima Front-End](https://github.com/thewijay/Intima_Front-End)
+
+---
+
 ## 🎓 Academic Acknowledgment
 
 This project is a proud outcome of our **Capstone Project** module at the  
 🌱 **[Sabaragamuwa University of Sri Lanka](https://sab.ac.lk/)** – where creativity meets real-world impact.
 
 We thank our mentors and the Faculty of Computing for the continued support and academic inspiration.
+
 
